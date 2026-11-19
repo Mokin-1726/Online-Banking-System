@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Secure confirmation — Ledgerline{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>Secure confirmation</h1>
+  <p class="page-sub">Transfer of {{ as_currency(parties.amount) }} to {{ parties.receiver_name }} · account {{ mask(parties.receiver_account) }}</p>
+</header>
+
+{% if ch.status == 'blocked' %}
+<section class="panel risk-panel risk-blocked">
+  <div class="risk-score-badge risk-badge-high">Transfer blocked</div>
+  <h2>This transfer has been blocked for your safety</h2>
+  <p>Secure confirmation failed too many times. <strong>No money was sent.</strong> Bank staff have been notified and will review it. If this was you, please contact the bank.</p>
+  <h3 class="risk-subhead">Why was it flagged?</h3>
+  <ul class="sec-reasons">{% for r in reasons %}<li>{{ r }}</li>{% endfor %}</ul>
+  <p class="sec-attempts">{{ attempts_text }}</p>
+  <div class="risk-actions"><a href="{{ url_for('routes.dashboard') }}" class="btn btn-ghost">Back to dashboard</a></div>
+</section>
+
+{% elif ch.status == 'cancelled' %}
+<section class="panel">
+  <h2>Transfer cancelled</h2>
+  <p>This transfer was cancelled. No money was sent.</p>
+  <div class="risk-actions"><a href="{{ url_for('routes.transfer') }}" class="btn btn-primary">New transfer</a></div>
+</section>
+
+{% elif ch.status == 'approved' %}
+<section class="panel">
+  <h2>Transfer completed</h2>
+  <p>Secure confirmation passed and the transfer has been completed.</p>
+  <div class="risk-actions"><a href="{{ url_for('routes.dashboard') }}" class="btn btn-primary">Back to dashboard</a></div>
+</section>
+
+{% else %}
+<section class="panel risk-panel risk-warning">
+  <div class="risk-score-badge {{ 'risk-badge-high' if ch.risk_level == 'HIGH' else 'risk-badge-medium' }}">{{ ch.risk_level }} risk</div>
+  <h2>Suspicious activity detected</h2>
+  <p>Your transfer is <strong>on hold</strong> and no money has moved. We flagged it because:</p>
+  <ul class="sec-reasons">{% for r in reasons %}<li>{{ r }}</li>{% endfor %}</ul>
+  <div class="risk-summary">
+    Sending <strong class="mono">{{ as_currency(parties.amount) }}</strong> to <strong>{{ parties.receiver_name }}</strong>
+    (account <strong class="mono">{{ mask(parties.receiver_account) }}</strong>)
+  </div>
+  <p class="sec-attempts">{{ attempts_text }}</p>
+</section>
+
+{% if ch.status == 'password_pending' %}
+<section class="panel">
+  <div class="panel-head">
+    <h2>Step 1 of 2 — High-security password</h2>
+    {% if has_password %}<span class="sec-timer" id="sec-timer" data-seconds="{{ password_seconds_left }}">{{ password_seconds_left }}s left</span>{% endif %}
+  </div>
+  {% if has_password %}
+  <p class="hint-text" style="margin-top:0;">Enter your high-security confirmation password within {{ window }} seconds. If you miss the time or type it wrongly, the attempt counts as failed.</p>
+  <form method="POST" action="{{ url_for('security.submit_password', tx_id=ch.transaction_id) }}" class="stacked-form" id="sec-form">
+    <label>High-security password
+      <input type="password" name="hs_password" required autofocus autocomplete="off">
+    </label>
+    <button type="submit" class="btn btn-primary">Verify password</button>
+  </form>
+  {% else %}
+  <p>You have not set a high-security password yet, so this transfer cannot be confirmed. Set one now and you will return here to finish.</p>
+  <a class="btn btn-primary" href="{{ url_for('security.settings', next=ch.transaction_id) }}">Set high-security password</a>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if ch.status == 'otp_pending' %}
+<section class="panel">
+  <div class="panel-head">
+    <h2>Step 2 of 2 — One-time password (OTP)</h2>
+    {% if otp_active %}<span class="sec-timer" id="sec-timer" data-seconds="{{ otp_seconds_left }}">{{ otp_seconds_left }}s left</span>{% endif %}
+  </div>
+  {% if otp_active %}
+  <p class="hint-text" style="margin-top:0;">We sent a 6-digit OTP to your registered mobile number or email. It is valid for {{ (otp_seconds_left // 60) + 1 }} minute(s).</p>
+  <form method="POST" action="{{ url_for('security.submit_otp', tx_id=ch.transaction_id) }}" class="stacked-form" id="sec-form">
+    <label>OTP
+      <input type="text" name="otp" required autofocus inputmode="numeric" pattern="\d{6}" maxlength="6" autocomplete="one-time-code" class="sec-otp">
+    </label>
+    <button type="submit" class="btn btn-primary">Confirm transfer</button>
+  </form>
+  {% else %}
+  <p>Your OTP has expired. Request a new one to continue.</p>
+  {% endif %}
+  <form method="POST" action="{{ url_for('security.resend_otp', tx_id=ch.transaction_id) }}" style="margin-top:12px;">
+    <button type="submit" class="btn btn-secondary btn-small">Send a new OTP</button>
+  </form>
+</section>
+{% endif %}
+
+<form method="POST" action="{{ url_for('security.cancel', tx_id=ch.transaction_id) }}" style="margin-top:4px;">
+  <button type="submit" class="btn btn-ghost">Cancel this transfer</button>
+</form>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const t = document.getElementById('sec-timer');
+  if (!t) { return; }
+  let left = parseInt(t.dataset.seconds, 10) || 0;
+  function tick() {
+    t.textContent = left + 's left';
+    t.classList.toggle('sec-timer-low', left <= 10);
+    if (left <= 0) {
+      t.textContent = 'time is up';
+      // reload so the server records the timeout / expiry and shows the result
+      setTimeout(function () { window.location.reload(); }, 800);
+      return;
+    }
+    left -= 1;
+    setTimeout(tick, 1000);
+  }
+  tick();
+})();
+</script>
+{% endblock %}

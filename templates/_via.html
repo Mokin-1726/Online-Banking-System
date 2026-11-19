@@ -1,0 +1,7 @@
+{# "Sent via" badge: shows how the sender addressed the receiver —
+   account number, UPI ID or phone number — and the exact value used. #}
+{% macro via(tx) %}
+{% set m = tx.transfer_method or 'account' %}
+<span class="via-pill via-{{ m }}">{{ 'UPI ID' if m == 'upi' else ('Phone' if m == 'phone' else 'Account no.') }}</span>
+<span class="via-ref mono">{{ tx.receiver_ref or tx.receiver_account }}</span>
+{% endmacro %}

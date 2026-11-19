@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+{% from "_heatmap.html" import heatmap %}
+{% set st = d.staff %}
+{% set perf = d.perf %}
+{% block title %}{{ st.name }} — Staff Performance — Ledgerline{% endblock %}
+{% block content %}
+<a href="{{ url_for('routes.admin_performance') }}" class="back-link">← All staff</a>
+
+<header class="page-header staff-header">
+  <span class="avatar avatar-lg">{{ st.name.split()|map('first')|join('')|upper }}</span>
+  <div>
+    <h1>{{ st.name }}</h1>
+    <p class="page-sub">Staff member · <span class="mono">{{ st.email }}</span></p>
+  </div>
+  <span class="reward-pill reward-{{ perf.reward_tier|lower }} reward-lg">{{ perf.reward_tier }}</span>
+</header>
+
+<!-- ============ Profile ============ -->
+<section class="panel">
+  <div class="panel-head"><h2>Staff details</h2></div>
+  <div class="detail-grid">
+    <div class="detail-item"><span class="detail-label">Full name</span><span class="detail-value">{{ st.name }}</span></div>
+    <div class="detail-item"><span class="detail-label">Email</span><span class="detail-value">{{ st.email }}</span></div>
+    <div class="detail-item"><span class="detail-label">Role</span><span class="detail-value">{{ st.role|capitalize }}</span></div>
+    <div class="detail-item"><span class="detail-label">Staff ID</span><span class="detail-value mono">#{{ st.id }}</span></div>
+    <div class="detail-item"><span class="detail-label">Joined</span><span class="detail-value">{{ st.created_at or '—' }}</span></div>
+    <div class="detail-item"><span class="detail-label">Profile status</span>
+      <span class="detail-value"><span class="status-pill {{ 'status-allowed' if st.is_active else 'status-blocked' }}">{{ 'Active' if st.is_active else 'Inactive' }}</span></span>
+    </div>
+    <div class="detail-item"><span class="detail-label">Team rank</span><span class="detail-value">{{ ('#' ~ d.rank ~ ' of ' ~ d.team_size) if d.rank else '—' }}</span></div>
+    <div class="detail-item"><span class="detail-label">Reward tier</span><span class="detail-value"><span class="reward-pill reward-{{ perf.reward_tier|lower }}">{{ perf.reward_tier }}</span></span></div>
+  </div>
+</section>
+
+<!-- ============ KPIs ============ -->
+<section class="stat-row">
+  <div class="stat-card">
+    <div class="stat-label">Flagged resolved</div>
+    <div class="stat-figure">{{ perf.resolved_count }}</div>
+    <div class="stat-sub">Team avg: {{ d.team_avg_resolved }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Last 7 days</div>
+    <div class="stat-figure">{{ d.resolved_last_7 }}</div>
+    <div class="stat-sub">resolved recently</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Avg. rating</div>
+    <div class="stat-figure">{{ perf.avg_rating if perf.avg_rating is not none else '—' }}</div>
+    <div class="stat-sub">Team avg: {{ d.team_avg_rating if d.team_avg_rating is not none else '—' }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Customer reviews</div>
+    <div class="stat-figure">{{ d.feedback_count }}</div>
+    <div class="stat-sub">feedback received</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Avg. resolution time</div>
+    <div class="stat-figure stat-small">{{ humanize_minutes(perf.avg_resolution_minutes) }}</div>
+    <div class="stat-sub">flag → reviewed</div>
+  </div>
+</section>
+
+<!-- ============ Performance score & tier ============ -->
+{% set si = d.score_info %}
+<section class="panel">
+  <div class="panel-head">
+    <h2>Performance score</h2>
+    <span class="reward-pill reward-{{ si.tier|lower }} reward-lg">{{ si.tier }}</span>
+  </div>
+  <div class="score-hero">
+    <div class="score-big">{{ si.total }}<small> / 100</small></div>
+    <div class="score-note">
+      {% if si.next and si.next.need is not none %}
+      <strong>{{ si.next.missing }} more points</strong> to reach <strong>{{ si.next.name }}</strong> (needs {{ si.next.need }}).
+      <div class="progress" style="margin-top:8px;"><div class="progress-fill" style="width: {{ si.next.pct }}%"></div></div>
+      {% elif si.next and si.tier == 'Unranked' %}
+      Resolve a flagged transaction or receive a customer rating to get ranked.
+      {% elif si.next %}
+      Resolve a flagged transaction to move above Bronze.
+      {% else %}
+      Top tier reached.
+      {% endif %}
+      {% if si.capped %}<div class="risk-detail" style="margin-top:6px;">No flagged transaction resolved yet, so Bronze is the highest tier possible.</div>{% endif %}
+    </div>
+  </div>
+  <table class="risk-table score-table">
+    <thead><tr><th>Part</th><th>How it was measured</th><th class="num">Points</th></tr></thead>
+    <tbody>
+      {% for part in si.parts %}
+      <tr>
+        <td><strong>{{ part.label }}</strong></td>
+        <td>{{ part.detail }}
+          <div class="progress" style="margin-top:6px;"><div class="progress-fill {{ 'fill-good' if part.pct >= 70 else ('fill-warn' if part.pct >= 35 else 'fill-bad') }}" style="width: {{ part.pct }}%"></div></div>
+        </td>
+        <td class="num mono">{{ part.points }} / {{ part.max }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot><tr><td colspan="2"><strong>Performance score</strong> <span class="risk-detail">(Gold 75+, Silver 50+, Bronze below 50)</span></td><td class="num mono"><strong>{{ si.total }} / 100</strong></td></tr></tfoot>
+  </table>
+</section>
+
+<!-- ============ Performance by question ============ -->
+<section class="panel">
+  <div class="panel-head"><h2>Performance by question</h2><span class="hint-text" style="margin:0;">Average star rating from customers' 10-question feedback</span></div>
+  {% set answered = d.questions | selectattr('count') | list %}
+  {% if answered %}
+  {% if d.strongest and d.weakest %}
+  <div class="insight-row">
+    <div class="insight insight-good"><span class="detail-label">Strongest area</span><strong>{{ d.strongest.short }}</strong> <span class="mono">{{ d.strongest.avg }}/5</span></div>
+    <div class="insight insight-bad"><span class="detail-label">Needs improvement</span><strong>{{ d.weakest.short }}</strong> <span class="mono">{{ d.weakest.avg }}/5</span></div>
+  </div>
+  {% endif %}
+  <div class="question-perf">
+    <div class="question-chart"><canvas id="chart-questions"></canvas></div>
+    <div class="question-table">
+      {% for q in d.questions %}
+      <div class="qp-row">
+        <div class="qp-label"><span class="question-no">{{ q.no }}</span>{{ q.short }}</div>
+        <div class="progress"><div class="progress-fill {{ 'fill-good' if q.avg and q.avg >= 4 else ('fill-warn' if q.avg and q.avg >= 3 else 'fill-bad') }}" style="width: {{ q.pct }}%"></div></div>
+        <div class="qp-score mono">{{ q.avg if q.avg is not none else '—' }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <p class="empty-state">No question-based ratings yet. They appear once customers rate this staff member using the new feedback form.</p>
+  {% endif %}
+</section>
+
+<!-- ============ Activity calendar (replaces the old 14-day bar chart) ============ -->
+<section class="panel">
+  <div class="panel-head">
+    <h2>Activity calendar</h2>
+    <div class="login-tabs hm-tabs" role="tablist">
+      <button type="button" class="login-tab active" data-hm="logins">Logins</button>
+      <button type="button" class="login-tab" data-hm="resolved">Cases resolved</button>
+    </div>
+  </div>
+  <p class="hint-text" style="margin-top:0;" id="hm-hint">Each square is a day {{ st.name }} signed in — the greener, the more logins.</p>
+  <div id="hm-logins">{{ heatmap(d.heat_logins) }}</div>
+  <div id="hm-resolved" hidden>{{ heatmap(d.heat_resolved) }}</div>
+</section>
+
+<div class="admin-grid">
+  <section class="panel">
+    <div class="panel-head"><h2>Customer rating breakdown</h2></div>
+    {% if d.feedback_count %}
+    <canvas id="chart-ratings" height="150"></canvas>
+    {% else %}
+    <p class="empty-state">No customer ratings yet.</p>
+    {% endif %}
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>Resolved by risk level</h2></div>
+    {% if perf.resolved_count %}
+    <canvas id="chart-risk" height="150"></canvas>
+    {% else %}
+    <p class="empty-state">No flagged transactions resolved yet.</p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="panel">
+  <div class="panel-head"><h2>Recent customer feedback</h2></div>
+  {% if d.feedback %}
+  <ul class="feedback-list">
+    {% for f in d.feedback %}
+    <li>
+      <div class="feedback-top">
+        <span class="stars">{{ '★' * f.rating }}{{ '☆' * (5 - f.rating) }}</span>
+        {% if f.score is not none %}<span class="feedback-score mono">{{ '%.1f'|format(f.score) }}/5</span>{% endif %}
+        <span class="feedback-who">{{ f.customer_name }} · {{ f.created_at }}</span>
+      </div>
+      <p class="feedback-comment">{{ f.comment or 'No comment left.' }}</p>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty-state">No feedback yet.</p>
+  {% endif %}
+</section>
+
+<!-- ============ Recent work ============ -->
+<section class="panel">
+  <div class="panel-head"><h2>Recently resolved transactions</h2></div>
+  {% if d.recent_resolved %}
+  <table class="ledger-table">
+    <thead><tr><th>Resolved at</th><th>From</th><th>To</th><th class="num">Amount</th><th>Risk</th><th>Status</th><th class="num">Took</th></tr></thead>
+    <tbody>
+      {% for tx in d.recent_resolved %}
+      <tr>
+        <td>{{ tx.resolved_at }}</td>
+        <td class="mono">{{ tx.sender_account }}</td>
+        <td class="mono">{{ tx.receiver_account }}</td>
+        <td class="num mono">{{ as_currency(tx.amount) }}</td>
+        <td>{{ tx.risk_score }}</td>
+        <td><span class="status-pill status-{{ tx.status }}">{{ tx.status }}</span></td>
+        <td class="num">{{ humanize_minutes(((tx.resolved_at - tx.timestamp).total_seconds() / 60)) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">This staff member hasn't resolved any flagged transactions yet.</p>
+  {% endif %}
+</section>
+{% if session.get('role') == 'admin' %}
+<section class="panel danger-zone" id="delete">
+  <div class="panel-head"><h2>Delete this staff account</h2></div>
+  <p class="hint-text" style="margin-top:0;">
+    {{ st.name }} will no longer be able to log in and will disappear from the staff list, rankings and the customer feedback form.
+    Their past work (resolved transactions and customer ratings) stays in the records.
+  </p>
+  <form method="POST" action="{{ url_for('routes.admin_delete_staff', staff_id=st.id) }}" class="delete-form">
+    <label>Type <strong>DELETE</strong> to confirm
+      <input type="text" name="confirm" required autocomplete="off" pattern="DELETE" placeholder="DELETE">
+    </label>
+    <button type="submit" class="btn btn-danger">Delete staff account</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  const charts = {{ d.charts | tojson }};
+  const css = getComputedStyle(document.documentElement);
+  const get = (v, f) => css.getPropertyValue(v).trim() || f;
+  const accent = get('--accent', '#0E8F86');
+  const warn = get('--warn', '#B9720C');
+  const danger = get('--danger', '#C23B34');
+  const success = get('--success', '#1E7B4D');
+  const ink = get('--ink', '#16213A');
+  const grid = get('--border', '#E2E5EB');
+
+  const axis = { ticks: { color: ink, precision: 0 }, grid: { color: grid } };
+
+  // Activity calendar: switch between Logins and Cases resolved
+  const HINTS = {
+    logins: 'Each square is a day {{ st.name }} signed in — the greener, the more logins.',
+    resolved: 'Each square is a day {{ st.name }} resolved flagged transactions — the greener, the more cases.'
+  };
+  document.querySelectorAll('.hm-tabs .login-tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      const which = tab.dataset.hm;
+      document.querySelectorAll('.hm-tabs .login-tab').forEach(function (t) {
+        t.classList.toggle('active', t === tab);
+      });
+      document.getElementById('hm-logins').hidden = which !== 'logins';
+      document.getElementById('hm-resolved').hidden = which !== 'resolved';
+      document.getElementById('hm-hint').textContent = HINTS[which];
+    });
+  });
+
+  const qEl = document.getElementById('chart-questions');
+  if (qEl) {
+    new Chart(qEl, {
+      type: 'radar',
+      data: { labels: charts.questions.labels,
+              datasets: [{ label: 'Avg rating', data: charts.questions.values,
+                           backgroundColor: accent + '33', borderColor: accent,
+                           pointBackgroundColor: accent, borderWidth: 2 }] },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: { r: { min: 0, max: 5, ticks: { stepSize: 1, color: ink, backdropColor: 'transparent' },
+                       grid: { color: grid }, angleLines: { color: grid },
+                       pointLabels: { color: ink, font: { size: 12 } } } },
+      },
+    });
+  }
+
+  const ratingEl = document.getElementById('chart-ratings');
+  if (ratingEl) {
+    new Chart(ratingEl, {
+      type: 'bar',
+      data: { labels: charts.ratings.labels,
+              datasets: [{ label: 'Reviews', data: charts.ratings.values,
+                           backgroundColor: [danger, danger, warn, success, success], borderRadius: 4 }] },
+      options: { plugins: { legend: { display: false } },
+                 scales: { x: { ticks: { color: ink }, grid: { display: false } },
+                           y: Object.assign({ beginAtZero: true }, axis) } },
+    });
+  }
+
+  const riskEl = document.getElementById('chart-risk');
+  if (riskEl) {
+    new Chart(riskEl, {
+      type: 'doughnut',
+      data: { labels: charts.risk.labels,
+              datasets: [{ data: charts.risk.values, backgroundColor: [success, warn, danger], borderWidth: 0 }] },
+      options: { plugins: { legend: { position: 'bottom', labels: { color: ink } } } },
+    });
+  }
+})();
+</script>
+{% endblock %}

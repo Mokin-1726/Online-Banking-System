@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Security alerts — Ledgerline{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>Security alerts</h1>
+  <p class="page-sub">Transfers blocked after repeated failed secure confirmation.</p>
+</header>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>{{ 'Open alerts' if show != 'all' else 'All alerts' }} ({{ alerts|length }})</h2>
+    {% if show == 'all' %}<a class="panel-link" href="{{ url_for('security.staff_alerts') }}">Show open only</a>
+    {% else %}<a class="panel-link" href="{{ url_for('security.staff_alerts', show='all') }}">Show all</a>{% endif %}
+  </div>
+
+  {% for a in alerts %}
+  <div class="sec-alert {{ 'sec-alert-open' if a.status == 'open' else '' }}">
+    <div class="sec-alert-head">
+      <span class="risk-score-badge {{ 'risk-badge-high' if a.risk_level == 'HIGH' else 'risk-badge-medium' }}">{{ a.risk_level }} risk</span>
+      <span class="risk-detail">{{ a.created_at.strftime('%d %b %Y, %H:%M') }}</span>
+      <span class="status-pill {{ 'status-blocked' if a.status == 'open' else 'status-allowed' }}">{{ a.status }}</span>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-item"><span class="detail-label">Customer</span><span class="detail-value">{{ a.customer_name }}</span></div>
+      <div class="detail-item"><span class="detail-label">Customer account</span><span class="detail-value mono">{{ a.customer_account }}</span></div>
+      <div class="detail-item"><span class="detail-label">Beneficiary</span><span class="detail-value">{{ a.beneficiary_name }}</span></div>
+      <div class="detail-item"><span class="detail-label">Beneficiary account</span><span class="detail-value mono">{{ a.beneficiary_account }}</span></div>
+      <div class="detail-item"><span class="detail-label">Amount</span><span class="detail-value mono">{{ as_currency(a.amount) }}</span></div>
+      <div class="detail-item"><span class="detail-label">Failed attempts</span><span class="detail-value">{{ a.failed_attempts }}</span></div>
+    </div>
+    <div class="sec-alert-explain"><span class="detail-label">Problem explanation</span><p>{{ a.explanation }}</p></div>
+    {% if a.status == 'open' %}
+    <form method="POST" action="{{ url_for('security.review_alert', alert_id=a.id) }}">
+      <button type="submit" class="btn btn-secondary btn-small">Mark reviewed</button>
+    </form>
+    {% else %}
+    <div class="risk-detail">Reviewed by {{ a.reviewed_by_name or 'staff' }}{% if a.reviewed_at %} on {{ a.reviewed_at.strftime('%d %b %Y, %H:%M') }}{% endif %}</div>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="hint-text" style="margin:0;">No alerts{{ '' if show == 'all' else ' waiting for review' }}.</p>
+  {% endfor %}
+</section>
+{% endblock %}

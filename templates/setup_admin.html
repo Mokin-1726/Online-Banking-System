@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Set up Admin — Ledgerline{% endblock %}
+{% block auth_content %}
+<div class="auth-card">
+  <div class="auth-mark">L</div>
+  <h1>Create the Admin account</h1>
+  <p class="auth-sub">This page only works once — the first Admin created here becomes the bank's only Admin.</p>
+
+  <form method="POST" class="auth-form">
+    <label>Full name
+      <input type="text" name="name" required autofocus>
+    </label>
+    <label>Email
+      <input type="email" name="email" required>
+    </label>
+    <label>Password
+      <input type="password" name="password" required minlength="8">
+    </label>
+    <label>Confirm password
+      <input type="password" name="confirm_password" required minlength="8">
+    </label>
+    <button type="submit" class="btn btn-primary btn-block">Create Admin account</button>
+  </form>
+</div>
+{% endblock %}

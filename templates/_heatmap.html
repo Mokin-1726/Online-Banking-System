@@ -1,0 +1,20 @@
+{# GitHub-style activity calendar. `h` comes from services.build_heatmap(). #}
+{% macro heatmap(h) %}
+<div class="heatmap-scroll">
+  <div class="heatmap" style="--cols: {{ h.weeks|length }};">
+    <div class="hm-months">
+      {% for col, name in h.months %}<span style="grid-column: {{ col + 1 }};">{{ name }}</span>{% endfor %}
+    </div>
+    <div class="hm-body">
+      <div class="hm-days"><span></span><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span></div>
+      <div class="hm-grid">
+        {% for week in h.weeks %}{% for day in week %}{% if day %}<span class="hm-cell hm-l{{ day.level }}" title="{{ day.title }}"></span>{% else %}<span class="hm-cell hm-none"></span>{% endif %}{% endfor %}{% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="hm-foot">
+    <span class="hm-summary"><strong>{{ h.total }}</strong> {{ h.unit }} in the last year · <strong>{{ h.active_days }}</strong> active day{{ 's' if h.active_days != 1 }}</span>
+    <span class="hm-legend">Less <i class="hm-cell hm-l0"></i><i class="hm-cell hm-l1"></i><i class="hm-cell hm-l2"></i><i class="hm-cell hm-l3"></i><i class="hm-cell hm-l4"></i> More</span>
+  </div>
+</div>
+{% endmacro %}

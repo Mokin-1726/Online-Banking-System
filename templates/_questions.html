@@ -1,0 +1,27 @@
+{# Star-rating question block shared by Staff and Service feedback.
+   `prefix` keeps radio ids unique when both blocks are on the page. #}
+{% macro question_block(questions, prefix) %}
+<div class="questions-head">
+  <h3>Rate your experience</h3>
+  <span class="questions-progress" data-progress>0 / {{ questions|length }} answered</span>
+</div>
+
+<div class="questions">
+  {% for q in questions %}
+  <div class="question-row">
+    <div class="question-text"><span class="question-no">{{ q.no }}</span>{{ q.text }}</div>
+    <div class="star-rating" role="radiogroup" aria-label="{{ q.text }}">
+      {% for v in [5, 4, 3, 2, 1] %}
+      <input type="radio" id="{{ prefix }}-q{{ q.no }}-{{ v }}" name="q{{ q.no }}" value="{{ v }}" required>
+      <label for="{{ prefix }}-q{{ q.no }}-{{ v }}" title="{{ v }} star{{ 's' if v != 1 }}">★</label>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="overall-preview" data-overall hidden>
+  Overall rating: <strong data-overall-value>0.0</strong> / 5
+  <span class="overall-label" data-overall-label></span>
+</div>
+{% endmacro %}

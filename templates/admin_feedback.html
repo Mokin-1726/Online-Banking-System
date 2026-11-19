@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Global Feedback — Ledgerline{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>Global feedback</h1>
+  <p class="page-sub">All service and staff feedback across the bank.</p>
+</header>
+
+<!-- ============ Banking service performance ============ -->
+<section class="stat-row">
+  <div class="stat-card"><div class="stat-label">Service reviews</div><div class="stat-figure">{{ service.count }}</div></div>
+  <div class="stat-card"><div class="stat-label">Service rating</div><div class="stat-figure">{{ (service.avg ~ '/5') if service.avg is not none else '—' }}</div></div>
+  <div class="stat-card"><div class="stat-label">Strongest area</div><div class="stat-figure stat-small">{{ service.strongest.short if service.strongest else '—' }}</div></div>
+  <div class="stat-card"><div class="stat-label">Needs improvement</div><div class="stat-figure stat-small">{{ service.weakest.short if service.weakest else '—' }}</div></div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>Banking service performance</h2><span class="hint-text" style="margin:0;">Average star rating per question from customers' service feedback</span></div>
+  {% if service.has_answers %}
+  <div class="question-perf">
+    <div class="question-chart"><canvas id="chart-service"></canvas></div>
+    <div class="question-table">
+      {% for q in service.questions %}
+      <div class="qp-row">
+        <div class="qp-label"><span class="question-no">{{ q.no }}</span>{{ q.short }}</div>
+        <div class="progress"><div class="progress-fill {{ 'fill-good' if q.avg and q.avg >= 4 else ('fill-warn' if q.avg and q.avg >= 3 else 'fill-bad') }}" style="width: {{ q.pct }}%"></div></div>
+        <div class="qp-score mono">{{ q.avg if q.avg is not none else '—' }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <p class="empty-state">No question-based service ratings yet. They appear once customers use the new Banking service feedback form.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <form method="GET" class="filter-form">
+    <label>Type
+      <select name="type">
+        <option value="" {{ 'selected' if not feedback_type }}>All</option>
+        <option value="service" {{ 'selected' if feedback_type == 'service' }}>Service</option>
+        <option value="staff" {{ 'selected' if feedback_type == 'staff' }}>Staff</option>
+      </select>
+    </label>
+    <label>Min. rating
+      <select name="min_rating">
+        <option value="" {{ 'selected' if not min_rating }}>Any</option>
+        {% for r in [5,4,3,2,1] %}
+        <option value="{{ r }}" {{ 'selected' if min_rating|string == r|string }}>{{ r }}+</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>From
+      <input type="date" name="start_date" value="{{ start_date or '' }}">
+    </label>
+    <label>To
+      <input type="date" name="end_date" value="{{ end_date or '' }}">
+    </label>
+    <button type="submit" class="btn btn-secondary">Filter</button>
+    {% if feedback_type or min_rating or start_date or end_date %}
+    <a href="{{ url_for('routes.admin_feedback') }}" class="btn btn-ghost">Clear</a>
+    {% endif %}
+  </form>
+</section>
+
+<section class="panel">
+  {% if feedback_list %}
+  <table class="ledger-table">
+    <thead><tr><th>Date</th><th>Type</th><th>Customer</th><th>About</th><th>Rating</th><th>Comment</th></tr></thead>
+    <tbody>
+      {% for f in feedback_list %}
+      <tr>
+        <td>{{ f.created_at }}</td>
+        <td style="text-transform:capitalize">{{ f.type }}</td>
+        <td>{{ f.customer_name }}</td>
+        <td>{{ f.staff_name or '—' }}</td>
+        <td class="mono">{{ ('%.1f'|format(f.score)) if f.score is not none else f.rating }}/5</td>
+        <td>{{ f.comment or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No feedback matches this filter.</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% if service.has_answers %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  const data = {{ service.chart | tojson }};
+  const css = getComputedStyle(document.documentElement);
+  const get = (v, f) => css.getPropertyValue(v).trim() || f;
+  const accent = get('--accent', '#0E8F86');
+  const ink = get('--ink', '#16213A');
+  const grid = get('--border', '#E2E5EB');
+
+  new Chart(document.getElementById('chart-service'), {
+    type: 'radar',
+    data: { labels: data.labels,
+            datasets: [{ label: 'Avg rating', data: data.values,
+                         backgroundColor: accent + '33', borderColor: accent,
+                         pointBackgroundColor: accent, borderWidth: 2 }] },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: { r: { min: 0, max: 5, ticks: { stepSize: 1, color: ink, backdropColor: 'transparent' },
+                     grid: { color: grid }, angleLines: { color: grid },
+                     pointLabels: { color: ink, font: { size: 12 } } } },
+    },
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

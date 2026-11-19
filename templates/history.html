@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "_via.html" import via %}
+{% block title %}Statement — Ledgerline{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>Statement</h1>
+  <p class="page-sub">Full transaction history{% if account %} for account {{ account.account_number }}{% endif %}.</p>
+</header>
+
+<section class="panel">
+  <form method="GET" class="filter-form">
+    <label>From
+      <input type="date" name="start_date" value="{{ start_date or '' }}">
+    </label>
+    <label>To
+      <input type="date" name="end_date" value="{{ end_date or '' }}">
+    </label>
+    <button type="submit" class="btn btn-secondary">Filter</button>
+    {% if start_date or end_date %}
+    <a href="{{ url_for('routes.history') }}" class="btn btn-ghost">Clear</a>
+    {% endif %}
+    {% if account %}
+    <a href="{{ url_for('routes.history_pdf', start_date=start_date, end_date=end_date) }}" class="btn btn-primary">Download PDF</a>
+    {% endif %}
+  </form>
+</section>
+
+<section class="panel">
+  {% if transactions %}
+  <table class="ledger-table">
+    <thead>
+      <tr><th>Date</th><th>Direction</th><th>Counterparty account</th><th>Sent via</th><th class="num">Amount</th><th>Risk</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      {% for tx in transactions %}
+      <tr>
+        <td>{{ tx.timestamp }}</td>
+        <td>{{ 'Sent' if tx.sender_id == account.id else 'Received' }}</td>
+        <td class="mono">{{ tx.receiver_account if tx.sender_id == account.id else tx.sender_account }}</td>
+        <td>{{ via(tx) }}</td>
+        <td class="num mono">{{ as_currency(tx.amount) }}</td>
+        <td>{{ tx.risk_score }}</td>
+        <td><span class="status-pill status-{{ tx.status }}">{{ tx.status }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No transactions found for this range.</p>
+  {% endif %}
+</section>
+{% endblock %}

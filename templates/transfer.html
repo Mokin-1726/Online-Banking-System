@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% from "_risk.html" import meter, factor_table %}
+{% block title %}Transfer — Ledgerline{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>Transfer money</h1>
+  <p class="page-sub">From account {{ account.account_number }} · Available {{ as_currency(account.balance) }}</p>
+</header>
+
+{% if blocked %}
+<section class="panel risk-panel risk-blocked">
+  <div class="risk-score-badge risk-badge-high">Risk score {{ risk_score }}/100</div>
+  <h2>This transfer has been blocked</h2>
+  <p>Our fraud detection checked this transfer against several rules. Each rule that applied adds points, and a total of 70 or more is blocked automatically — no money moved.</p>
+  {{ meter(risk_score) }}
+  <h3 class="risk-subhead">Why was it blocked?</h3>
+  {{ factor_table(factors, risk_score, tips) }}
+  <p class="risk-help">If you believe this is a mistake, contact support or try again after following the tips above.</p>
+</section>
+{% endif %}
+
+{% if warning %}
+<section class="panel risk-panel risk-warning">
+  <div class="risk-score-badge risk-badge-medium">Risk score {{ risk_score }}/100</div>
+  <h2>This transfer looks unusual</h2>
+  <p>A total of 40 to 69 needs your confirmation. Check the details below, then confirm or cancel.</p>
+  {{ meter(risk_score) }}
+  <h3 class="risk-subhead">Why does it look unusual?</h3>
+  {{ factor_table(factors, risk_score, tips) }}
+  <div class="risk-summary">
+    <span>Sending <strong class="mono">{{ as_currency(pending_amount) }}</strong>
+      to {% if pending_receiver_name %}<strong>{{ pending_receiver_name }}</strong> {% endif %}(account <strong class="mono">{{ pending_receiver }}</strong>)
+      {% if pending_method == 'upi' %}via UPI ID <strong class="mono">{{ pending_ref }}</strong>{% elif pending_method == 'phone' %}via phone number <strong class="mono">{{ pending_ref }}</strong>{% endif %}</span>
+  </div>
+  <form method="POST" action="{{ url_for('routes.confirm_transfer', tx_id=pending_tx_id) }}" class="risk-actions">
+    <button type="submit" class="btn btn-warning">Confirm transfer anyway</button>
+    <a href="{{ url_for('routes.transfer') }}" class="btn btn-ghost">Cancel</a>
+  </form>
+</section>
+{% endif %}
+
+{% set active = form.get('method', 'account') %}
+<section class="panel">
+  <form method="POST" class="stacked-form transfer-form" id="transfer-form">
+    <input type="hidden" name="method" id="transfer-method" value="{{ active }}">
+
+    <div>
+      <span class="detail-label">Send money using</span>
+      <div class="login-tabs transfer-tabs" role="tablist" style="margin-top:6px;">
+        <button type="button" class="login-tab {{ 'active' if active == 'account' }}" data-method="account">Account number</button>
+        <button type="button" class="login-tab {{ 'active' if active == 'upi' }}" data-method="upi">UPI ID</button>
+        <button type="button" class="login-tab {{ 'active' if active == 'phone' }}" data-method="phone">Phone number</button>
+      </div>
+    </div>
+
+    <label><span id="receiver-label">Receiver account number</span>
+      <input type="text" name="receiver" id="receiver-input" required autofocus
+             autocomplete="off" value="{{ form.get('receiver', '') }}">
+    </label>
+    <p class="tab-hint" id="receiver-hint" style="margin:-8px 0 0;"></p>
+
+    <label>Amount
+      <input type="number" name="amount" step="0.01" min="0.01" required placeholder="0.00" value="{{ form.get('amount', '') }}">
+    </label>
+    <button type="submit" class="btn btn-primary">Review transfer</button>
+  </form>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const tabs = document.querySelectorAll('.transfer-tabs .login-tab');
+  const methodInput = document.getElementById('transfer-method');
+  const input = document.getElementById('receiver-input');
+  const label = document.getElementById('receiver-label');
+  const hint = document.getElementById('receiver-hint');
+
+  const CONFIG = {
+    account: { label: 'Receiver account number', placeholder: '12-digit account number',
+               hint: '', pattern: '\\d{12}', maxlength: 12, mode: 'numeric' },
+    upi:     { label: 'Receiver UPI ID', placeholder: 'abc@ledgerline or 9876543210@ledgerline',
+               hint: 'Works with email-based (abc@ledgerline) and phone-based (9876543210@ledgerline) UPI IDs.', pattern: '', maxlength: 60, mode: 'text' },
+    phone:   { label: 'Receiver phone number', placeholder: '10-digit mobile number',
+               hint: 'We find the account registered with this phone number.', pattern: '', maxlength: 14, mode: 'numeric' }
+  };
+
+  function select(name, focus) {
+    const c = CONFIG[name];
+    tabs.forEach(function (t) { t.classList.toggle('active', t.dataset.method === name); });
+    methodInput.value = name;
+    label.textContent = c.label;
+    input.placeholder = c.placeholder;
+    input.maxLength = c.maxlength;
+    input.inputMode = c.mode;
+    if (c.pattern) { input.pattern = c.pattern; } else { input.removeAttribute('pattern'); }
+    hint.textContent = c.hint;
+    hint.hidden = !c.hint;
+    if (focus) { input.focus(); }
+  }
+
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () {
+      if (t.dataset.method !== methodInput.value) { input.value = ''; }
+      select(t.dataset.method, true);
+    });
+  });
+  select(methodInput.value, false);
+})();
+</script>
+{% endblock %}

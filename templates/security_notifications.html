@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Security notifications — Ledgerline{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>Security notifications</h1>
+  <p class="page-sub">Alerts about suspicious activity on your account.</p>
+</header>
+
+<section class="panel">
+  {% for n in items %}
+  <div class="sec-note sec-note-{{ n.severity }}">
+    <div class="sec-note-head"><strong>{{ n.title }}</strong><span class="risk-detail">{{ n.created_at.strftime('%d %b %Y, %H:%M') }}</span></div>
+    <div>{{ n.message }}</div>
+  </div>
+  {% else %}
+  <p class="hint-text" style="margin:0;">No security notifications yet.</p>
+  {% endfor %}
+</section>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Staff Login — Ledgerline{% endblock %}
+{% block auth_content %}
+<div class="auth-card">
+  <div class="auth-mark auth-mark-staff">L</div>
+  <h1>Bank Staff sign in</h1>
+  <p class="auth-sub">For Staff accounts created by the Admin only.</p>
+
+  <form method="POST" class="auth-form">
+    <label>Staff email
+      <input type="email" name="email" required autofocus placeholder="staff@ledgerline.bank">
+    </label>
+    <label>Password
+      <input type="password" name="password" required placeholder="••••••••">
+    </label>
+    <button type="submit" class="btn btn-primary btn-block">Log in as Staff</button>
+  </form>
+
+  <p class="auth-switch">
+    Not Staff? <a href="{{ url_for('routes.login') }}">Customer login</a>
+    &nbsp;·&nbsp;
+    <a href="{{ url_for('routes.admin_login') }}">Admin login</a>
+  </p>
+</div>
+{% endblock %}

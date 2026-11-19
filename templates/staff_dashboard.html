@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% from "_via.html" import via %}
+{% from "_risk.html" import staff_why %}
+{% from "_heatmap.html" import heatmap %}
+{% block title %}Staff Dashboard — Ledgerline{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>Staff dashboard</h1>
+  <p class="page-sub">Bank-wide activity, flagged transactions, and account lookup.</p>
+</header>
+
+<section class="stat-row">
+  <div class="stat-card">
+    <div class="stat-label">Flagged transactions</div>
+    <div class="stat-figure">{{ flagged|length }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">High-risk accounts</div>
+    <div class="stat-figure">{{ high_risk_accounts|length }}</div>
+  </div>
+</section>
+
+{% if login_heatmap %}
+<section class="panel">
+  <div class="panel-head"><h2>Your login activity</h2><span class="hint-text" style="margin:0;">Each square is a day you signed in — the greener, the more often</span></div>
+  {{ heatmap(login_heatmap) }}
+</section>
+{% endif %}
+
+<section class="panel">
+  <div class="panel-head"><h2>Transactions over time</h2></div>
+  <canvas id="chart-transactions" height="90"></canvas>
+</section>
+
+<div class="admin-grid">
+  <section class="panel">
+    <div class="panel-head"><h2>Risk score trend</h2></div>
+    <canvas id="chart-risk" height="140"></canvas>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>Flagged vs normal</h2></div>
+    <canvas id="chart-pie" height="140"></canvas>
+  </section>
+</div>
+
+{% if session.get('role') == 'staff' %}
+<section class="panel" style="max-width:560px;">
+  <div class="panel-head"><h2>Create a Customer account</h2></div>
+  <form method="POST" action="{{ url_for('routes.staff_create_customer') }}" class="stacked-form">
+    <label>Full name
+      <input type="text" name="name" required>
+    </label>
+    <label>Email
+      <input type="email" name="email" required>
+    </label>
+    <label>Phone number
+      <input type="tel" name="phone" required inputmode="numeric" maxlength="14" placeholder="10-digit mobile number">
+    </label>
+    <label>Temporary password
+      <input type="password" name="password" required minlength="8">
+    </label>
+    <button type="submit" class="btn btn-primary">Create Customer account</button>
+  </form>
+  <p class="hint-text">Customers can also register themselves at /register — this is for opening one on their behalf. Their UPI IDs are created from the email and phone number.</p>
+</section>
+{% endif %}
+
+<section class="panel">
+  <div class="panel-head"><h2>Accounts</h2></div>
+  <table class="ledger-table">
+    <thead><tr><th>Account No.</th><th>Owner</th><th>Phone</th><th>UPI IDs</th><th>Role</th><th class="num">Balance</th><th></th></tr></thead>
+    <tbody>
+      {% for acc in accounts %}
+      <tr>
+        <td><a href="{{ url_for('routes.staff_account_view', account_id=acc.id) }}" class="mono">{{ acc.account_number }}</a></td>
+        <td>{{ acc.owner_name }}</td>
+        <td class="mono">{{ acc.owner_phone or '—' }}</td>
+        <td class="mono">{{ acc.owner_upi_email or '—' }}{% if acc.owner_upi %}<br>{{ acc.owner_upi }}{% endif %}</td>
+        <td style="text-transform:capitalize">{{ acc.owner_role }}</td>
+        <td class="num mono">{{ as_currency(acc.balance) }}</td>
+        <td class="num">{% if session.get('role') == 'staff' and acc.owner_role == 'customer' %}<a href="{{ url_for('routes.staff_account_view', account_id=acc.id) }}#delete" class="delete-link">Delete</a>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Recent transfers</h2>
+    <form method="GET" class="filter-form" style="margin:0;">
+      <select name="method" onchange="this.form.submit()" aria-label="Filter by transfer method">
+        <option value="">All methods</option>
+        <option value="account" {{ 'selected' if method == 'account' }}>Account number</option>
+        <option value="upi" {{ 'selected' if method == 'upi' }}>UPI ID</option>
+        <option value="phone" {{ 'selected' if method == 'phone' }}>Phone number</option>
+      </select>
+    </form>
+  </div>
+  {% if recent_transfers %}
+  <table class="ledger-table">
+    <thead><tr><th>Date</th><th>Sender</th><th>Receiver</th><th>Sent via</th><th class="num">Amount</th><th>Risk</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for tx in recent_transfers %}
+      <tr>
+        <td>{{ tx.timestamp }}</td>
+        <td>{{ tx.sender_name }} <span class="mono">({{ tx.sender_account }})</span></td>
+        <td>{{ tx.receiver_name }} <span class="mono">({{ tx.receiver_account }})</span></td>
+        <td>{{ via(tx) }}</td>
+        <td class="num mono">{{ as_currency(tx.amount) }}</td>
+        <td>{{ tx.risk_score }}{{ staff_why(breakdowns.get(tx.id), tx.risk_score) }}</td>
+        <td><span class="status-pill status-{{ tx.status }}">{{ tx.status }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No transfers found.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>Flagged transactions</h2></div>
+  {% if flagged %}
+  <table class="ledger-table">
+    <thead><tr><th>Date</th><th>Sender</th><th>Receiver</th><th>Sent via</th><th class="num">Amount</th><th>Risk</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for tx in flagged %}
+      <tr>
+        <td>{{ tx.timestamp }}</td>
+        <td>{{ tx.sender_name }} <span class="mono">({{ tx.sender_account }})</span></td>
+        <td>{{ tx.receiver_name }} <span class="mono">({{ tx.receiver_account }})</span></td>
+        <td>{{ via(tx) }}</td>
+        <td class="num mono">{{ as_currency(tx.amount) }}</td>
+        <td>{{ tx.risk_score }}{{ staff_why(breakdowns.get(tx.id), tx.risk_score) }}</td>
+        <td><span class="status-pill status-{{ tx.status }}">{{ tx.status }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">Nothing flagged. All clear.</p>
+  {% endif %}
+</section>
+
+{% if session.get('role') == 'staff' %}
+<section class="panel">
+  <div class="panel-head"><h2>Feedback about you</h2></div>
+  {% if my_feedback %}
+  <table class="ledger-table">
+    <thead><tr><th>Date</th><th>Customer</th><th>Rating</th><th>Comment</th></tr></thead>
+    <tbody>
+      {% for f in my_feedback %}
+      <tr>
+        <td>{{ f.created_at }}</td>
+        <td>{{ f.customer_name }}</td>
+        <td class="mono">{{ f.rating }}/5</td>
+        <td>{{ f.comment or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No feedback yet.</p>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+(async function () {
+  const res = await fetch("{{ url_for('routes.staff_api_charts') }}");
+  const data = await res.json();
+
+  const rootStyles = getComputedStyle(document.documentElement);
+  const accent = rootStyles.getPropertyValue('--accent').trim() || '#0E8F86';
+  const warn = rootStyles.getPropertyValue('--warn').trim() || '#B9720C';
+  const ink = rootStyles.getPropertyValue('--ink').trim() || '#16213A';
+
+  new Chart(document.getElementById('chart-transactions'), {
+    type: 'line',
+    data: {
+      labels: data.transactions_over_time.labels,
+      datasets: [{
+        label: 'Total transferred',
+        data: data.transactions_over_time.totals,
+        borderColor: accent,
+        backgroundColor: accent + '33',
+        fill: true,
+        tension: 0.3,
+      }],
+    },
+    options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: ink } }, y: { ticks: { color: ink } } } },
+  });
+
+  new Chart(document.getElementById('chart-risk'), {
+    type: 'line',
+    data: {
+      labels: data.risk_score_trend.labels,
+      datasets: [{
+        label: 'Avg risk score',
+        data: data.risk_score_trend.avg_scores,
+        borderColor: warn,
+        backgroundColor: warn + '33',
+        fill: true,
+        tension: 0.3,
+      }],
+    },
+    options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: ink } }, y: { ticks: { color: ink }, suggestedMax: 100 } } },
+  });
+
+  new Chart(document.getElementById('chart-pie'), {
+    type: 'pie',
+    data: {
+      labels: ['Flagged', 'Normal'],
+      datasets: [{
+        data: [data.flagged_vs_normal.flagged, data.flagged_vs_normal.normal],
+        backgroundColor: [warn, accent],
+      }],
+    },
+    options: { plugins: { legend: { labels: { color: ink } } } },
+  });
+})();
+</script>
+
+{% endblock %}

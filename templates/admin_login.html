@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Admin Login — Ledgerline{% endblock %}
+{% block auth_content %}
+<div class="auth-card">
+  <div class="auth-mark auth-mark-admin">L</div>
+  <h1>Admin sign in</h1>
+  <p class="auth-sub">There is only one Admin account in this system.</p>
+
+  <form method="POST" class="auth-form">
+    <label>Admin email
+      <input type="email" name="email" required autofocus placeholder="admin@ledgerline.bank">
+    </label>
+    <label>Password
+      <input type="password" name="password" required placeholder="••••••••">
+    </label>
+    <button type="submit" class="btn btn-primary btn-block">Log in as Admin</button>
+  </form>
+
+  <p class="auth-switch">
+    <a href="{{ url_for('routes.login') }}">Customer login</a>
+    &nbsp;·&nbsp;
+    <a href="{{ url_for('routes.staff_login') }}">Staff login</a>
+  </p>
+  <p class="hint-text" style="text-align:center;">
+    No Admin yet? <a href="{{ url_for('routes.setup_admin') }}">Run one-time setup</a>
+  </p>
+</div>
+{% endblock %}

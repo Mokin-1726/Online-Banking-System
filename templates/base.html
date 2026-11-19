@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Ledgerline{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/security.css') }}">
+</head>
+<body class="{% if not session.get('user_id') %}no-shell{% endif %}">
+
+{% if session.get('user_id') %}
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">L</span>
+      <span class="brand-name">Ledgerline</span>
+    </div>
+    <nav class="side-nav">
+      {% if session.get('role') == 'customer' %}
+      <a href="{{ url_for('routes.dashboard') }}" class="{{ 'active' if request.endpoint == 'routes.dashboard' }}">Dashboard</a>
+      <a href="{{ url_for('routes.account_details') }}" class="{{ 'active' if request.endpoint == 'routes.account_details' }}">Account</a>
+      <a href="{{ url_for('routes.profile') }}" class="{{ 'active' if request.endpoint == 'routes.profile' }}">My Profile</a>
+      <a href="{{ url_for('routes.transfer') }}" class="{{ 'active' if request.endpoint == 'routes.transfer' }}">Transfer</a>
+      <a href="{{ url_for('routes.history') }}" class="{{ 'active' if request.endpoint == 'routes.history' }}">Statement</a>
+      <a href="{{ url_for('routes.feedback') }}" class="{{ 'active' if request.endpoint == 'routes.feedback' }}">Feedback</a>
+      <a href="{{ url_for('security.notifications') }}" class="{{ 'active' if request.endpoint == 'security.notifications' }}">Security Alerts{% if unread_security_notifications %}<span class="nav-badge">{{ unread_security_notifications }}</span>{% endif %}</a>
+      <a href="{{ url_for('security.settings') }}" class="{{ 'active' if request.endpoint == 'security.settings' }}">High-Security Password</a>
+      <div class="side-nav-divider"></div>
+      <a href="{{ url_for('routes.change_password') }}" class="{{ 'active' if request.endpoint == 'routes.change_password' }}">Change Password</a>
+
+      {% elif session.get('role') == 'staff' %}
+      <a href="{{ url_for('routes.staff_dashboard') }}" class="{{ 'active' if request.endpoint in ('routes.staff_dashboard', 'routes.staff_account_view') }}">Staff Dashboard</a>
+      <a href="{{ url_for('security.staff_alerts') }}" class="{{ 'active' if request.endpoint == 'security.staff_alerts' }}">Security Alerts{% if open_security_alerts %}<span class="nav-badge">{{ open_security_alerts }}</span>{% endif %}</a>
+      <div class="side-nav-divider"></div>
+      <a href="{{ url_for('routes.change_password') }}" class="{{ 'active' if request.endpoint == 'routes.change_password' }}">Change Password</a>
+
+      {% elif session.get('role') == 'admin' %}
+      <a href="{{ url_for('routes.admin_dashboard') }}" class="{{ 'active' if request.endpoint == 'routes.admin_dashboard' }}">Admin Console</a>
+      <a href="{{ url_for('routes.staff_dashboard') }}" class="{{ 'active' if request.endpoint in ('routes.staff_dashboard', 'routes.staff_account_view') }}">Staff View</a>
+      <a href="{{ url_for('security.staff_alerts') }}" class="{{ 'active' if request.endpoint == 'security.staff_alerts' }}">Security Alerts{% if open_security_alerts %}<span class="nav-badge">{{ open_security_alerts }}</span>{% endif %}</a>
+      <a href="{{ url_for('routes.admin_performance') }}" class="{{ 'active' if request.endpoint in ('routes.admin_performance', 'routes.admin_staff_detail') }}">Staff Performance</a>
+      <a href="{{ url_for('routes.admin_feedback') }}" class="{{ 'active' if request.endpoint == 'routes.admin_feedback' }}">Global Feedback</a>
+      <div class="side-nav-divider"></div>
+      <a href="{{ url_for('routes.change_password') }}" class="{{ 'active' if request.endpoint == 'routes.change_password' }}">Change Password</a>
+      {% endif %}
+    </nav>
+    <div class="sidebar-footer">
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">
+        <span class="theme-icon">◐</span> <span class="theme-label">Theme</span>
+      </button>
+      <div class="who">
+        <div class="who-name">{{ session.get('name') }}</div>
+        <div class="who-role">{{ session.get('role') }}</div>
+      </div>
+      <a href="{{ url_for('routes.logout') }}" class="logout-link">Log out</a>
+    </div>
+  </aside>
+
+  <main class="main-area">
+    {% include "_flashes.html" %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% else %}
+  <div class="auth-shell">
+    <button id="theme-toggle" class="theme-toggle floating" type="button" aria-label="Toggle dark mode">
+      <span class="theme-icon">◐</span>
+    </button>
+    {% include "_flashes.html" %}
+    {% block auth_content %}{% endblock %}
+  </div>
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,27 @@
+/* Styles for the Suspicious Activity & Secure Confirmation module.
+   Uses the CSS variables already defined in style.css (light + dark). */
+.sec-reasons { margin: 8px 0 12px; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; }
+.sec-attempts { font-size: 13px; color: var(--ink-soft); margin: 8px 0 0; }
+.sec-timer {
+  font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+  padding: 4px 10px; border-radius: 999px;
+  background: var(--panel-alt); border: 1px solid var(--border-strong); color: var(--ink);
+}
+.sec-timer-low { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+.sec-otp { font-family: var(--font-mono); font-size: 22px; letter-spacing: 0.35em; text-align: center; }
+.sec-note { border: 1px solid var(--border); border-left-width: 4px; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; font-size: 14px; }
+.sec-note-head { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.sec-note-warning { border-left-color: var(--warn); }
+.sec-note-danger { border-left-color: var(--danger); }
+.sec-note-success { border-left-color: var(--success); }
+.sec-note-info { border-left-color: var(--border-strong); }
+.sec-alert { border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 14px; display: grid; gap: 14px; }
+.sec-alert-open { border-color: var(--danger); background: var(--danger-soft); }
+.sec-alert-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.sec-alert-head .risk-score-badge { margin: 0; }
+.sec-alert-explain p { margin: 4px 0 0; font-size: 14px; }
+.nav-badge {
+  display: inline-block; min-width: 18px; padding: 1px 6px; margin-left: 6px;
+  border-radius: 999px; background: var(--danger); color: #fff;
+  font-size: 11px; font-weight: 700; text-align: center;
+}

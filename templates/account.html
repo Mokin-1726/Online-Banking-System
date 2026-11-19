@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Account — Ledgerline{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>Account details</h1>
+  <p class="page-sub">Your profile and account information. <a href="{{ url_for('routes.profile') }}">Edit profile</a></p>
+</header>
+
+<section class="panel">
+  <div class="detail-grid">
+    <div><span class="detail-label">Name</span><span class="detail-value">{{ user.name }}</span></div>
+    <div><span class="detail-label">Email</span><span class="detail-value">{{ user.email }}</span></div>
+    <div><span class="detail-label">Phone</span><span class="detail-value mono">{{ user.phone or '—' }}</span></div>
+    <div><span class="detail-label">UPI ID (email)</span><span class="detail-value mono">{{ user.upi_email or '—' }}</span></div>
+    <div><span class="detail-label">UPI ID (phone)</span><span class="detail-value mono">{{ user.upi_id or '—' }}</span></div>
+    <div><span class="detail-label">Role</span><span class="detail-value" style="text-transform:capitalize">{{ user.role }}</span></div>
+    <div><span class="detail-label">Member since</span><span class="detail-value">{{ user.created_at }}</span></div>
+  </div>
+</section>
+
+{% for account in accounts %}
+<section class="panel">
+  <div class="panel-head"><h2>Account No. {{ account.account_number }}</h2></div>
+  <div class="detail-grid">
+    <div><span class="detail-label">Balance</span><span class="detail-value mono">{{ as_currency(account.balance) }}</span></div>
+    <div><span class="detail-label">Opened</span><span class="detail-value">{{ account.created_at }}</span></div>
+  </div>
+</section>
+{% endfor %}
+{% endblock %}

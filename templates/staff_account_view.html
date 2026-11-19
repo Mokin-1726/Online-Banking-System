@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% from "_via.html" import via %}
+{% from "_risk.html" import staff_why %}
+{% block title %}Account {{ account.account_number }} — Ledgerline{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>{{ owner.name }}</h1>
+  <p class="page-sub">Account <span class="mono">{{ account.account_number }}</span> · Balance {{ as_currency(account.balance) }}</p>
+</header>
+
+<section class="panel">
+  <div class="panel-head"><h2>Account holder</h2></div>
+  <div class="detail-grid">
+    <div class="detail-item"><span class="detail-label">Full name</span><span class="detail-value">{{ owner.name }}</span></div>
+    <div class="detail-item"><span class="detail-label">Email</span><span class="detail-value">{{ owner.email }}</span></div>
+    <div class="detail-item"><span class="detail-label">Phone number</span><span class="detail-value mono">{{ owner.phone or '—' }}</span></div>
+    <div class="detail-item"><span class="detail-label">UPI ID (from email)</span><span class="detail-value mono">{{ owner.upi_email or '—' }}</span></div>
+    <div class="detail-item"><span class="detail-label">UPI ID (from phone)</span><span class="detail-value mono">{{ owner.upi_id or '—' }}</span></div>
+    <div class="detail-item"><span class="detail-label">Role</span><span class="detail-value">{{ owner.role|capitalize }}</span></div>
+    <div class="detail-item"><span class="detail-label">Customer ID</span><span class="detail-value mono">#{{ owner.id }}</span></div>
+    <div class="detail-item"><span class="detail-label">Member since</span><span class="detail-value">{{ owner.created_at or '—' }}</span></div>
+    <div class="detail-item"><span class="detail-label">Profile status</span>
+      <span class="detail-value">
+        <span class="status-pill {{ 'status-allowed' if owner.is_active else 'status-blocked' }}">{{ 'Active' if owner.is_active else 'Inactive' }}</span>
+      </span>
+    </div>
+    <div class="detail-item"><span class="detail-label">Account number</span><span class="detail-value mono">{{ account.account_number }}</span></div>
+    <div class="detail-item"><span class="detail-label">Account opened</span><span class="detail-value">{{ account.created_at or '—' }}</span></div>
+    <div class="detail-item"><span class="detail-label">Current balance</span><span class="detail-value mono">{{ as_currency(account.balance) }}</span></div>
+  </div>
+  {% if other_accounts %}
+  <p class="hint-text">Other accounts of this holder:
+    {% for a in other_accounts %}
+    <a href="{{ url_for('routes.staff_account_view', account_id=a.id) }}" class="mono">{{ a.account_number }}</a>{{ ', ' if not loop.last }}
+    {% endfor %}
+  </p>
+  {% endif %}
+</section>
+
+<section class="stat-row">
+  <div class="stat-card"><div class="stat-label">Total transactions</div><div class="stat-figure">{{ summary.total_tx }}</div></div>
+  <div class="stat-card"><div class="stat-label">Total sent</div><div class="stat-figure stat-small">{{ as_currency(summary.total_sent) }}</div></div>
+  <div class="stat-card"><div class="stat-label">Total received</div><div class="stat-figure stat-small">{{ as_currency(summary.total_received) }}</div></div>
+  <div class="stat-card"><div class="stat-label">Flagged / blocked</div><div class="stat-figure">{{ summary.flagged }}</div></div>
+  <div class="stat-card"><div class="stat-label">Highest risk score</div><div class="stat-figure">{{ summary.max_risk }}</div></div>
+  <div class="stat-card"><div class="stat-label">Last activity</div><div class="stat-figure stat-small">{{ summary.last_activity or '—' }}</div></div>
+</section>
+
+<section class="panel">
+  <form method="GET" class="filter-form">
+    <label>From
+      <input type="date" name="start_date" value="{{ start_date or '' }}">
+    </label>
+    <label>To
+      <input type="date" name="end_date" value="{{ end_date or '' }}">
+    </label>
+    <label>Risk level
+      <select name="risk_level">
+        <option value="" {{ 'selected' if not risk_level }}>All</option>
+        <option value="low" {{ 'selected' if risk_level == 'low' }}>Low (0–39)</option>
+        <option value="medium" {{ 'selected' if risk_level == 'medium' }}>Medium (40–69)</option>
+        <option value="high" {{ 'selected' if risk_level == 'high' }}>High (70–100)</option>
+      </select>
+    </label>
+    <button type="submit" class="btn btn-secondary">Filter</button>
+    {% if start_date or end_date or risk_level %}
+    <a href="{{ url_for('routes.staff_account_view', account_id=account.id) }}" class="btn btn-ghost">Clear</a>
+    {% endif %}
+  </form>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>Transaction history</h2></div>
+  {% if transactions %}
+  <table class="ledger-table">
+    <thead>
+      <tr><th>Date</th><th>Direction</th><th>Counterparty</th><th>Sent via</th><th class="num">Amount</th><th>Risk</th><th>Status</th><th>Reviewed by</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for tx in transactions %}
+      <tr>
+        <td>{{ tx.timestamp }}</td>
+        <td>{{ 'Sent' if tx.sender_id == account.id else 'Received' }}</td>
+        <td class="mono">{{ tx.receiver_account if tx.sender_id == account.id else tx.sender_account }}</td>
+        <td>{% if tx.sender_id == account.id %}{{ via(tx) }}{% else %}<span class="hint-text" style="margin:0;">—</span>{% endif %}</td>
+        <td class="num mono">{{ as_currency(tx.amount) }}</td>
+        <td>{{ tx.risk_score }}{{ staff_why(breakdowns.get(tx.id), tx.risk_score) }}</td>
+        <td><span class="status-pill status-{{ tx.status }}">{{ tx.status }}</span></td>
+        <td>{{ tx.resolved_by_name or '—' }}</td>
+        <td>
+          {% if tx.status in ('warned', 'blocked') and not tx.resolved_by_name %}
+          <form method="POST" action="{{ url_for('routes.staff_resolve_transaction', tx_id=tx.id) }}">
+            <button type="submit" class="btn btn-ghost btn-small">Mark reviewed</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No transactions found for this filter.</p>
+  {% endif %}
+</section>
+
+{% if session.get('role') == 'staff' and owner.role == 'customer' %}
+<section class="panel danger-zone" id="delete">
+  <div class="panel-head"><h2>Delete this customer account</h2></div>
+  <p class="hint-text" style="margin-top:0;">
+    {{ owner.name }} will no longer be able to log in, and nobody can send money to this account. The account is closed with its current balance of
+    <strong class="mono">{{ as_currency(account.balance) }}</strong>. Transaction history is kept for the records.
+  </p>
+  <form method="POST" action="{{ url_for('routes.staff_delete_customer', user_id=owner.id) }}" class="delete-form">
+    <label>Type <strong>DELETE</strong> to confirm
+      <input type="text" name="confirm" required autocomplete="off" pattern="DELETE" placeholder="DELETE">
+    </label>
+    <button type="submit" class="btn btn-danger">Delete customer account</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

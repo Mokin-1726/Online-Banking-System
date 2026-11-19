@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Staff Performance — Ledgerline{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>Staff performance</h1>
+  <p class="page-sub">Flagged transactions resolved, resolution speed, and customer ratings, ranked best first.</p>
+</header>
+
+<section class="stat-row">
+  <div class="stat-card"><div class="stat-label">Staff members</div><div class="stat-figure">{{ overview.staff_count }}</div></div>
+  <div class="stat-card"><div class="stat-label">Flagged resolved (all staff)</div><div class="stat-figure">{{ overview.total_resolved }}</div></div>
+  <div class="stat-card"><div class="stat-label">Avg. customer rating</div><div class="stat-figure">{{ (overview.avg_rating ~ '/5') if overview.avg_rating is not none else '—' }}</div></div>
+  <div class="stat-card"><div class="stat-label">Top performer</div><div class="stat-figure stat-small">{{ overview.top.name if overview.top else '—' }}</div></div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>Our staff</h2><span class="hint-text" style="margin:0;">Click a staff member for their full profile and performance</span></div>
+  {% if performance %}
+  <div class="tier-legend">
+    <span><span class="reward-pill reward-gold">Gold</span> score 75+</span>
+    <span><span class="reward-pill reward-silver">Silver</span> score 50–74</span>
+    <span><span class="reward-pill reward-bronze">Bronze</span> below 50</span>
+    <span><span class="reward-pill reward-unranked">Unranked</span> no activity yet</span>
+    <span class="hint-text" style="margin:0;">Score = customer rating (50) + cases resolved (30) + resolution speed (20)</span>
+  </div>
+  {% for tier, members in tier_groups %}
+  <h3 class="tier-heading">
+    <span class="reward-pill reward-{{ tier|lower }}">{{ tier }}</span>
+    <span class="tier-count">{{ members|length }} staff member{{ 's' if members|length != 1 }}</span>
+  </h3>
+  <div class="staff-grid">
+    {% for p in members %}
+    <a class="staff-card" href="{{ url_for('routes.admin_staff_detail', staff_id=p.staff_id) }}">
+      <div class="staff-card-top">
+        <span class="avatar">{{ p.name.split()|map('first')|join('')|upper }}</span>
+        <div class="staff-id">
+          <div class="staff-name">{{ p.name }}</div>
+          <div class="staff-email mono">{{ p.email }}</div>
+        </div>
+        <span class="score-chip" title="Performance score out of 100">{{ p.score }}<small>/100</small></span>
+      </div>
+      <div class="staff-card-stats">
+        <div><span class="detail-label">Rank</span><span class="staff-stat">#{{ performance.index(p) + 1 }}</span></div>
+        <div><span class="detail-label">Resolved</span><span class="staff-stat">{{ p.resolved_count }}</span></div>
+        <div><span class="detail-label">Rating</span><span class="staff-stat">{{ ('★ ' ~ p.avg_rating) if p.avg_rating is not none else '—' }}</span></div>
+        <div><span class="detail-label">Avg. time</span><span class="staff-stat">{{ humanize_minutes(p.avg_resolution_minutes) }}</span></div>
+      </div>
+      <span class="staff-card-link">View profile →</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endfor %}
+  {% else %}
+  <p class="empty-state">No Staff accounts yet. Create one from the Admin Console.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>Performance by staff member</h2></div>
+  <canvas id="chart-performance" height="100"></canvas>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>Ranking</h2></div>
+  {% if performance %}
+  <table class="ledger-table">
+    <thead>
+      <tr><th>#</th><th>Staff</th><th class="num">Flagged resolved</th><th class="num">Avg. resolution time</th><th class="num">Avg. rating</th><th class="num">Score</th><th>Reward</th></tr>
+    </thead>
+    <tbody>
+      {% for p in performance %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td><a href="{{ url_for('routes.admin_staff_detail', staff_id=p.staff_id) }}">{{ p.name }}</a> <span class="mono">({{ p.email }})</span></td>
+        <td class="num">{{ p.resolved_count }}</td>
+        <td class="num">{{ (p.avg_resolution_minutes ~ ' min') if p.avg_resolution_minutes is not none else '—' }}</td>
+        <td class="num">{{ (p.avg_rating ~ '/5') if p.avg_rating is not none else '—' }}</td>
+        <td class="num"><strong>{{ p.score }}</strong> / 100</td>
+        <td><span class="reward-pill reward-{{ p.reward_tier|lower }}">{{ p.reward_tier }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No Staff accounts yet.</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  const labels = {{ performance | map(attribute='name') | list | tojson }};
+  const resolved = {{ performance | map(attribute='resolved_count') | list | tojson }};
+  const ratings = {{ (performance | map(attribute='avg_rating') | list | tojson) }};
+
+  const rootStyles = getComputedStyle(document.documentElement);
+  const accent = rootStyles.getPropertyValue('--accent').trim() || '#0E8F86';
+  const warn = rootStyles.getPropertyValue('--warn').trim() || '#B9720C';
+  const ink = rootStyles.getPropertyValue('--ink').trim() || '#16213A';
+
+  new Chart(document.getElementById('chart-performance'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'Flagged resolved', data: resolved, backgroundColor: accent },
+        { label: 'Avg rating (x10)', data: ratings.map(r => r ? r * 10 : 0), backgroundColor: warn },
+      ],
+    },
+    options: {
+      plugins: { legend: { labels: { color: ink } } },
+      scales: { x: { ticks: { color: ink } }, y: { ticks: { color: ink } } },
+    },
+  });
+})();
+</script>
+{% endblock %}

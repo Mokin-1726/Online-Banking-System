@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% from "_questions.html" import question_block %}
+{% block title %}Feedback — Ledgerline{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>Feedback</h1>
+  <p class="page-sub">Rate a staff member you dealt with, or the banking service in general — answer each question with 1 to 5 stars.</p>
+</header>
+
+<section class="panel">
+  <form method="POST" class="stacked-form feedback-form" id="feedback-form">
+    <label>Feedback type
+      <select name="type" id="feedback-type">
+        <option value="service">Banking service (general)</option>
+        <option value="staff">A specific Staff member</option>
+      </select>
+    </label>
+
+    <!-- ===== Staff feedback: pick staff + answer 10 questions ===== -->
+    <fieldset id="staff-section" class="feedback-section" data-total="{{ staff_questions|length }}" hidden disabled>
+      <label>Staff member
+        <select name="staff_id" id="staff-select">
+          {% for s in staff_members %}
+          <option value="{{ s.id }}">{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      {{ question_block(staff_questions, 'st') }}
+    </fieldset>
+
+    <!-- ===== Banking service feedback: 10 questions ===== -->
+    <fieldset id="service-section" class="feedback-section" data-total="{{ service_questions|length }}">
+      {{ question_block(service_questions, 'sv') }}
+    </fieldset>
+
+    <label>Comment (optional)
+      <input type="text" name="comment" placeholder="Anything you'd like us to know">
+    </label>
+
+    <button type="submit" class="btn btn-primary">Submit feedback</button>
+  </form>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>Your past feedback</h2></div>
+  {% if my_feedback %}
+  <table class="ledger-table">
+    <thead><tr><th>Date</th><th>Type</th><th>About</th><th>Rating</th><th>Comment</th></tr></thead>
+    <tbody>
+      {% for f in my_feedback %}
+      <tr>
+        <td>{{ f.created_at }}</td>
+        <td style="text-transform:capitalize">{{ f.type }}</td>
+        <td>{{ f.staff_name or '—' }}</td>
+        <td class="mono">{{ ('%.1f'|format(f.score)) if f.score is not none else f.rating }}/5</td>
+        <td>{{ f.comment or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">You haven't left any feedback yet.</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const typeSelect = document.getElementById('feedback-type');
+  const staffSection = document.getElementById('staff-section');
+  const serviceSection = document.getElementById('service-section');
+  const LABELS = { 1: 'Very poor', 2: 'Poor', 3: 'Okay', 4: 'Good', 5: 'Excellent' };
+
+  // Live "n / 10 answered" + running average, one instance per question block
+  function wire(section) {
+    const total = parseInt(section.dataset.total, 10);
+    const progress = section.querySelector('[data-progress]');
+    const preview = section.querySelector('[data-overall]');
+    const value = section.querySelector('[data-overall-value]');
+    const label = section.querySelector('[data-overall-label]');
+
+    function update() {
+      let answered = 0, sum = 0;
+      for (let i = 1; i <= total; i++) {
+        const picked = section.querySelector('input[name="q' + i + '"]:checked');
+        if (picked) { answered++; sum += parseInt(picked.value, 10); }
+      }
+      progress.textContent = answered + ' / ' + total + ' answered';
+      if (answered > 0) {
+        const avg = sum / answered;
+        value.textContent = avg.toFixed(1);
+        label.textContent = '· ' + LABELS[Math.round(avg)];
+        preview.hidden = false;
+      } else {
+        preview.hidden = true;
+      }
+    }
+    section.querySelectorAll('.star-rating input').forEach(function (r) {
+      r.addEventListener('change', update);
+    });
+    update();
+  }
+
+  // A disabled fieldset is neither validated nor submitted, so only the
+  // visible section's answers count (both use the names q1..q10).
+  function toggle() {
+    const staff = typeSelect.value === 'staff';
+    staffSection.hidden = !staff;
+    staffSection.disabled = !staff;
+    serviceSection.hidden = staff;
+    serviceSection.disabled = staff;
+  }
+
+  typeSelect.addEventListener('change', toggle);
+  wire(staffSection);
+  wire(serviceSection);
+  toggle();
+})();
+</script>
+{% endblock %}

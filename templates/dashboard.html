@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% from "_heatmap.html" import heatmap %}
+{% block title %}Dashboard — Ledgerline{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>Good to see you, {{ user.name.split(' ')[0] }}</h1>
+  <p class="page-sub">Here's where things stand today.</p>
+</header>
+
+{% if accounts %}
+{% set account = accounts[0] %}
+<section class="balance-card">
+  <div class="balance-label">Available balance</div>
+  <div class="balance-figure">{{ as_currency(account.balance) }}</div>
+  <div class="balance-account">Account No. {{ account.account_number }}</div>
+  <div class="balance-account">
+    UPI ID <span class="mono">{{ user.upi_email }}</span>
+    <button type="button" class="copy-link" data-copy="{{ user.upi_email }}">Copy</button>
+  </div>
+  <div class="balance-account">
+    {% if user.upi_id %}UPI ID <span class="mono">{{ user.upi_id }}</span>
+    <button type="button" class="copy-link" data-copy="{{ user.upi_id }}">Copy</button>
+    {% else %}No phone UPI ID yet — <a href="{{ url_for('routes.profile') }}">add your phone number</a> to create one.{% endif %}
+  </div>
+  <div class="balance-actions">
+    <a href="{{ url_for('routes.transfer') }}" class="btn btn-primary">Transfer money</a>
+    <a href="{{ url_for('routes.history') }}" class="btn btn-ghost">View statement</a>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>Your login activity</h2><span class="hint-text" style="margin:0;">Each square is a day you signed in — the greener, the more often</span></div>
+  {{ heatmap(login_heatmap) }}
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Transfer trend — last 14 days</h2>
+  </div>
+  <div id="trend-alert" class="suspicious-banner" hidden>
+    ⚠ Unusual outgoing activity detected on your account recently. Review your statement if this wasn't you.
+  </div>
+  <svg id="trend-chart" viewBox="0 0 640 200" preserveAspectRatio="none" role="img" aria-label="Transfer trend chart"></svg>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Recent activity</h2>
+    <a href="{{ url_for('routes.history') }}" class="panel-link">See all</a>
+  </div>
+  {% if recent %}
+  <table class="ledger-table">
+    <thead>
+      <tr><th>Date</th><th>Direction</th><th>Counterparty account</th><th class="num">Amount</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      {% for tx in recent %}
+      <tr>
+        <td>{{ tx.timestamp }}</td>
+        <td>{{ 'Sent' if tx.sender_id == account.id else 'Received' }}</td>
+        <td class="mono">{{ tx.receiver_account if tx.sender_id == account.id else tx.sender_account }}</td>
+        <td class="num mono">{{ as_currency(tx.amount) }}</td>
+        <td><span class="status-pill status-{{ tx.status }}">{{ tx.status }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No transfers yet. Once you send or receive money, it'll show up here.</p>
+  {% endif %}
+</section>
+
+{% else %}
+<p class="empty-state">No account is linked to your profile yet.</p>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(async function () {
+  try {
+    const res = await fetch("{{ url_for('routes.api_trends') }}");
+    const data = await res.json();
+    const svg = document.getElementById('trend-chart');
+    if (!data.values || data.values.length === 0) {
+      svg.outerHTML = '<p class="empty-state">Not enough activity yet to chart a trend.</p>';
+      return;
+    }
+    const max = Math.max(...data.values, 1);
+    const w = 640, h = 200, pad = 24;
+    const stepX = (w - pad * 2) / Math.max(data.values.length - 1, 1);
+    const points = data.values.map((v, i) => {
+      const x = pad + i * stepX;
+      const y = h - pad - (v / max) * (h - pad * 2);
+      return [x, y];
+    });
+    const path = points.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+    const areaPath = path + ` L${points[points.length-1][0].toFixed(1)},${h-pad} L${points[0][0].toFixed(1)},${h-pad} Z`;
+
+    let dots = '';
+    points.forEach((p, i) => {
+      dots += `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" class="trend-dot"><title>${data.labels[i]}: ${data.values[i].toFixed(2)}</title></circle>`;
+    });
+
+    svg.innerHTML = `
+      <path d="${areaPath}" class="trend-area"></path>
+      <path d="${path}" class="trend-line"></path>
+      ${dots}
+      <line x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}" class="trend-axis"></line>
+    `;
+
+    // Bonus: flag a simple spike as "suspicious activity"
+    const avg = data.values.reduce((a,b) => a+b, 0) / data.values.length;
+    const lastVal = data.values[data.values.length - 1];
+    if (lastVal > avg * 3 && lastVal > 0) {
+      document.getElementById('trend-alert').hidden = false;
+    }
+  } catch (e) {
+    console.error('Could not load trend data', e);
+  }
+})();
+</script>
+
+{% endblock %}

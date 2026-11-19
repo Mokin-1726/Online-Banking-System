@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Sign in — Ledgerline{% endblock %}
+{% block auth_content %}
+{% set tab = active_tab if active_tab in ('customer', 'staff', 'admin') else 'customer' %}
+<div class="auth-card auth-card-wide">
+  <div class="auth-mark">L</div>
+  <h1>Ledgerline</h1>
+  <p class="auth-sub">Sign in to your account</p>
+
+  <div class="login-tabs" role="tablist">
+    <button type="button" class="login-tab {{ 'active' if tab == 'customer' }}" role="tab" data-tab="customer">Customer</button>
+    <button type="button" class="login-tab {{ 'active' if tab == 'staff' }}" role="tab" data-tab="staff">Staff</button>
+    <button type="button" class="login-tab {{ 'active' if tab == 'admin' }}" role="tab" data-tab="admin">Admin</button>
+  </div>
+
+  <form method="POST" action="{{ url_for('routes.login') }}" class="auth-form" id="login-form">
+    <input type="hidden" name="login_type" id="login-type" value="{{ tab }}">
+
+    <p class="tab-hint" id="tab-hint"></p>
+
+    <label>Email
+      <input type="email" name="email" id="login-email" required autofocus placeholder="you@example.com">
+    </label>
+    <label>Password
+      <input type="password" name="password" required placeholder="••••••••">
+    </label>
+    <button type="submit" class="btn btn-primary btn-block">Log in</button>
+  </form>
+
+  <p class="auth-footnote" id="footnote-customer">
+    New here? <a href="{{ url_for('routes.register') }}">Create an account</a>
+  </p>
+  <p class="auth-footnote" id="footnote-admin">
+    No Admin yet? <a href="{{ url_for('routes.setup_admin') }}">Run one-time setup</a>
+  </p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var tabs = document.querySelectorAll(".login-tab");
+  var typeInput = document.getElementById("login-type");
+  var hint = document.getElementById("tab-hint");
+  var email = document.getElementById("login-email");
+  var footnotes = {
+    customer: document.getElementById("footnote-customer"),
+    admin: document.getElementById("footnote-admin")
+  };
+
+  var CONTENT = {
+    customer: {
+      hint: "Log in with the email and password you registered with.",
+      placeholder: "you@example.com"
+    },
+    staff: {
+      hint: "For Staff accounts created by the Admin.",
+      placeholder: "staff@ledgerline.bank"
+    },
+    admin: {
+      hint: "There is only one Admin account in this system.",
+      placeholder: "admin@ledgerline.bank"
+    }
+  };
+
+  function select(name, focus) {
+    tabs.forEach(function (t) {
+      t.classList.toggle("active", t.dataset.tab === name);
+    });
+    typeInput.value = name;
+    hint.textContent = CONTENT[name].hint;
+    email.placeholder = CONTENT[name].placeholder;
+    Object.keys(footnotes).forEach(function (key) {
+      footnotes[key].hidden = key !== name;
+    });
+    if (focus) email.focus();
+  }
+
+  tabs.forEach(function (t) {
+    t.addEventListener("click", function () { select(t.dataset.tab, true); });
+  });
+
+  select(typeInput.value, false);
+})();
+</script>
+{% endblock %}

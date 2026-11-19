@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Create account — Ledgerline{% endblock %}
+{% block auth_content %}
+<div class="auth-card">
+  <div class="auth-mark">L</div>
+  <h1>Open an account</h1>
+  <p class="auth-sub">A checking account is created for you automatically</p>
+
+  <form method="POST" class="auth-form">
+    <label>Full name
+      <input type="text" name="name" required autofocus placeholder="Jane Doe" value="{{ form.get('name', '') }}">
+    </label>
+    <label>Email
+      <input type="email" name="email" required placeholder="you@example.com" value="{{ form.get('email', '') }}">
+    </label>
+    <label>Phone number
+      <input type="tel" name="phone" required inputmode="numeric" maxlength="14"
+             placeholder="10-digit mobile number" value="{{ form.get('phone', '') }}">
+    </label>
+    <p class="tab-hint">You get two UPI IDs: one from your email (e.g. <span class="mono">abc@ledgerline</span>) and one from this number (e.g. <span class="mono">9876543210@ledgerline</span>).</p>
+    <label>Password
+      <input type="password" name="password" required minlength="8" placeholder="At least 8 characters">
+    </label>
+    <label>Confirm password
+      <input type="password" name="confirm_password" required minlength="8">
+    </label>
+    <button type="submit" class="btn btn-primary btn-block">Create account</button>
+  </form>
+
+  <p class="auth-footnote">
+    Already have an account? <a href="{{ url_for('routes.login') }}">Log in</a>
+  </p>
+</div>
+{% endblock %}

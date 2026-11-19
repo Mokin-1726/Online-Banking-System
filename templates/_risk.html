@@ -1,0 +1,65 @@
+{# Risk score explanations, shared by the customer Transfer page and the Staff pages.
+   score = min(100, sum of factor points). Zones: below 40 allowed, 40-69 confirm, 70+ blocked. #}
+
+{% macro meter(score) %}
+<div class="risk-meter" role="img" aria-label="Risk score {{ score }} out of 100">
+  <div class="risk-meter-bar">
+    <span class="zone zone-allow"></span><span class="zone zone-warn"></span><span class="zone zone-block"></span>
+    <span class="risk-marker" style="left: {{ score }}%;"><b>{{ score }}</b></span>
+  </div>
+  <div class="risk-meter-scale"><span>0</span><span style="left:40%">40</span><span style="left:70%">70</span><span style="left:100%">100</span></div>
+  <div class="risk-meter-legend"><span>Allowed (below 40)</span><span>Needs confirmation (40–69)</span><span>Blocked (70 and above)</span></div>
+</div>
+{% endmacro %}
+
+{# Full table for the customer: factor, what was found, points, final score #}
+{% macro factor_table(factors, score, tips=None) %}
+{% set ns = namespace(raw=0) %}
+{% for f in factors %}{% set ns.raw = ns.raw + (f.points or 0) %}{% endfor %}
+<table class="risk-table">
+  <thead><tr><th>Risk factor</th><th>What we found</th><th class="num">Points</th></tr></thead>
+  <tbody>
+    {% for f in factors %}
+    <tr>
+      <td><strong>{{ f.title }}</strong></td>
+      <td>{{ f.detail }}{% if tips and tips.get(f.code) %}<div class="risk-tip"><strong>What you can do:</strong> {{ tips[f.code] }}</div>{% endif %}</td>
+      <td class="num mono">{{ ('+' ~ f.points) if f.points is not none else '—' }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="3">No risk signals were found.</td></tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    {% if ns.raw > 100 %}<tr><td colspan="2">Sum of all points</td><td class="num mono">{{ ns.raw }}</td></tr>{% endif %}
+    <tr>
+      <td colspan="2"><strong>Final risk score</strong>{% if ns.raw > 100 %} <span class="risk-detail">(the score never goes above 100)</span>{% endif %}</td>
+      <td class="num mono"><strong>{{ score }} / 100</strong></td>
+    </tr>
+  </tfoot>
+</table>
+{% endmacro %}
+
+{# Compact "Why?" expander for staff tables #}
+{% macro staff_why(rows, score) %}
+{% if rows and score %}
+{% set ns = namespace(raw=0) %}
+{% for f in rows %}{% set ns.raw = ns.raw + (f.points or 0) %}{% endfor %}
+<details class="risk-details">
+  <summary>Why? ({{ rows|length }})</summary>
+  <ul class="risk-factors">
+    {% for f in rows %}
+    <li>
+      <span class="risk-pts">{{ ('+' ~ f.points) if f.points is not none else '•' }}</span>
+      <div><strong>{{ f.title }}</strong><div class="risk-detail">{{ f.detail }}</div></div>
+    </li>
+    {% endfor %}
+  </ul>
+  <div class="risk-total">
+    {% if ns.raw > 100 %}Sum {{ ns.raw }} → capped at 100{% else %}Total{% endif %}:
+    <strong>{{ score }} / 100</strong>
+  </div>
+</details>
+{% elif score %}
+<div class="risk-detail">No breakdown saved (older transaction)</div>
+{% endif %}
+{% endmacro %}

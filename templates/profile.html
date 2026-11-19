@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}My Profile — Ledgerline{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>My profile</h1>
+  <p class="page-sub">View and update your details. Your UPI IDs are created from your email and phone number.</p>
+</header>
+
+<section class="upi-cards">
+  <div class="upi-card">
+    <div>
+      <div class="upi-label">UPI ID from your email</div>
+      <div class="upi-value mono">{{ user.upi_email or '—' }}</div>
+      <div class="upi-sub">Created from {{ user.email }}</div>
+    </div>
+    {% if user.upi_email %}<button type="button" class="btn btn-ghost" data-copy="{{ user.upi_email }}">Copy</button>{% endif %}
+  </div>
+
+  <div class="upi-card">
+    <div>
+      <div class="upi-label">UPI ID from your phone number</div>
+      {% if user.upi_id %}
+      <div class="upi-value mono">{{ user.upi_id }}</div>
+      <div class="upi-sub">Created from {{ user.phone }}</div>
+      {% else %}
+      <div class="upi-value upi-missing">Not created yet</div>
+      <div class="upi-sub">Add your phone number below and this UPI ID is created automatically.</div>
+      {% endif %}
+    </div>
+    {% if user.upi_id %}<button type="button" class="btn btn-ghost" data-copy="{{ user.upi_id }}">Copy</button>{% endif %}
+  </div>
+</section>
+<p class="hint-text" style="margin-top:-8px;">Anyone can send you money using either UPI ID, your phone number, or your account number {{ accounts[0].account_number if accounts else '' }}.</p>
+
+<section class="panel">
+  <div class="panel-head"><h2>Edit details</h2></div>
+  <form method="POST" class="stacked-form">
+    <label>Full name
+      <input type="text" name="name" required value="{{ form.get('name', user.name) }}">
+    </label>
+    <label>Email
+      <input type="email" name="email" required value="{{ form.get('email', user.email) }}">
+    </label>
+    <label>Phone number
+      <input type="tel" name="phone" inputmode="numeric" maxlength="14"
+             placeholder="10-digit mobile number"
+             value="{{ form.get('phone', user.phone or '') }}" {{ 'required' if user.phone }}>
+    </label>
+    <p class="hint-text" style="margin:0;">Changing your email or phone number also changes the matching UPI ID. People must use the new one to send you money.</p>
+    <button type="submit" class="btn btn-primary">Save changes</button>
+  </form>
+</section>
+
+{% for account in accounts %}
+<section class="panel">
+  <div class="panel-head"><h2>Account No. {{ account.account_number }}</h2></div>
+  <div class="detail-grid">
+    <div class="detail-item"><span class="detail-label">Balance</span><span class="detail-value mono">{{ as_currency(account.balance) }}</span></div>
+    <div class="detail-item"><span class="detail-label">Opened</span><span class="detail-value">{{ account.created_at }}</span></div>
+    <div class="detail-item"><span class="detail-label">Member since</span><span class="detail-value">{{ user.created_at }}</span></div>
+  </div>
+</section>
+{% endfor %}
+{% endblock %}

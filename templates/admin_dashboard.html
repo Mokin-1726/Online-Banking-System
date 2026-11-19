@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Admin Console — Ledgerline{% endblock %}
+{% block content %}
+<header class="page-header">
+  <h1>Admin console</h1>
+  <p class="page-sub">Create Staff accounts, and monitor flagged activity across the bank.</p>
+</header>
+
+{% if flagged %}
+<div class="suspicious-banner" style="margin-bottom:24px;">
+  ⚠ {{ flagged|length }} flagged transaction{{ 's' if flagged|length != 1 }} require review below.
+</div>
+{% endif %}
+
+<section class="panel" style="max-width:560px;">
+  <div class="panel-head"><h2>Create a Staff account</h2></div>
+  <form method="POST" action="{{ url_for('routes.admin_create_staff') }}" class="stacked-form">
+    <label>Full name
+      <input type="text" name="name" required>
+    </label>
+    <label>Email
+      <input type="email" name="email" required>
+    </label>
+    <label>Temporary password
+      <input type="password" name="password" required minlength="8">
+    </label>
+    <button type="submit" class="btn btn-primary">Create Staff account</button>
+  </form>
+  <p class="hint-text">Staff accounts can only be created here — there's no public staff sign-up. Customer accounts are opened by Staff.</p>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>High-risk accounts</h2></div>
+  {% if high_risk_accounts %}
+  <table class="ledger-table">
+    <thead><tr><th>Account No.</th><th class="num">Flagged transfers</th></tr></thead>
+    <tbody>
+      {% for acc_num, count in high_risk_accounts.items() %}
+      <tr><td class="mono">{{ acc_num }}</td><td class="num">{{ count }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No high-risk accounts right now.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>All users</h2></div>
+  <table class="ledger-table">
+    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th></tr></thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.name }}</td>
+        <td>{{ u.email }}</td>
+        <td><span class="role-pill role-{{ u.role }}">{{ u.role }}</span></td>
+        <td>{{ u.created_at }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>Flagged transactions</h2></div>
+  {% if flagged %}
+  <table class="ledger-table">
+    <thead>
+      <tr><th>Date</th><th>Sender</th><th>Receiver</th><th class="num">Amount</th><th>Risk</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      {% for tx in flagged %}
+      <tr>
+        <td>{{ tx.timestamp }}</td>
+        <td>{{ tx.sender_name }} <span class="mono">({{ tx.sender_account }})</span></td>
+        <td>{{ tx.receiver_name }} <span class="mono">({{ tx.receiver_account }})</span></td>
+        <td class="num mono">{{ as_currency(tx.amount) }}</td>
+        <td>{{ tx.risk_score }}</td>
+        <td><span class="status-pill status-{{ tx.status }}">{{ tx.status }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">Nothing flagged. All clear.</p>
+  {% endif %}
+</section>
+{% endblock %}
